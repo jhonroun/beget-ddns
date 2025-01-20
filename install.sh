@@ -1,5 +1,5 @@
 #!/bin/bash
-
+export PATH=$PATH:/usr/local/go/bin
 # Проверка прав root
 if [ "$EUID" -ne 0 ]; then
   echo "Пожалуйста, запустите скрипт с правами root."
@@ -8,7 +8,8 @@ fi
 
 # Компиляция приложения
 echo "Компиляция приложения..."
-go build -o /usr/bin/ddns main.go
+mkdir -p /usr/bin/ddns
+go build -o /usr/bin/ddns/ddns main.go
 if [ $? -ne 0 ]; then
   echo "Ошибка компиляции. Убедитесь, что Go установлен."
   exit 1
@@ -16,7 +17,7 @@ fi
 
 # Копирование .env файла
 echo "Копирование .env файла..."
-cp .env /usr/bin/.env
+cp .env /usr/bin/ddns/.env
 
 # Установка прав доступа для каталога логов
 echo "Создание каталога для логов..."
@@ -31,8 +32,8 @@ Description=Dynamic DNS Updater Service
 After=network.target
 
 [Service]
-EnvironmentFile=/usr/bin/.env
-ExecStart=/usr/bin/ddns
+EnvironmentFile=/usr/bin/ddns/.env
+ExecStart=/usr/bin/ddns/ddns
 Restart=always
 User=root
 StandardOutput=syslog
