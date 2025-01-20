@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -72,6 +73,26 @@ func initLogger() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 }
 
+// Получение внешнего IP-адреса
+func getExternalIP() (string, error) {
+	resp, err := http.Get("https://api.ipify.org?format=text")
+	if err != nil {
+		return "", fmt.Errorf("ошибка при получении внешнего IP: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("неожиданный статус ответа от API: %s", resp.Status)
+	}
+
+	ip, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("ошибка чтения ответа: %v", err)
+	}
+
+	return string(ip), nil
+}
+
 // Отправка запроса к API для обновления A записи
 func updateARecord(newIP string) error {
 	data := InputData{
@@ -136,9 +157,16 @@ func watchIPv4Changes() {
 		if isIPv4(ip) {
 			currentIP := ip.String()
 			if currentIP != previousIP {
+				currentIPGlobal, err := getExternalIP()
+				if err != nil {
+					log.Printf("Ошибка определения внешнего IP: %v", err)
+					continue
+				}
 				log.Printf("Изменение IP: старый %s -> новый %s", previousIP, currentIP)
 				fmt.Printf("Изменение IP: старый %s -> новый %s\n", previousIP, currentIP)
-				if err := updateARecord(currentIP); err != nil {
+				log.Printf("Изменение внешнего IP -> новый %s", currentIPGlobal)
+				fmt.Printf("Изменение внешнего IP -> новый %s\n", currentIPGlobal)
+				if err := updateARecord(currentIPGlobal); err != nil {
 					log.Printf("Ошибка обновления записи A: %v", err)
 				}
 				previousIP = currentIP
